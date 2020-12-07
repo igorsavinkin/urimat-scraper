@@ -10,7 +10,10 @@ const csvWriter = createCsvWriter({
 	{id: 'url', title: 'Web Link'},
 	{id: 'sku', title: 'Artikel'}, 
 	{id: 'short_descr', title: 'Kurz beschreibung'},
-	{id: 'description', title: 'Beschreibung'},  
+	{id: 'description', title: 'Beschreibung'}, 
+    {id: 'price', title: 'Preise'},
+	{id: 'info', title: 'Preise Info'},
+    {id: 'delivery_time', title: 'Lieferzeit'},	
 	{id: 'images', title: 'Bilder'},
 	
   ]
@@ -38,7 +41,7 @@ function unescape_html(str){
 				  '&#xFC;': 'ü', '&uuml;': 'ü', 
 				  '&#xEB;': 'ë', '&euml;': 'ë',
 				  '&#xDF;': 'ß','&szlig;': 'ß',
-				  '&amp;': '&'
+				  '&amp;': '&',  '&#xA0;': ' '
 		};
 		for (const [key, value] of Object.entries(replacer)) {
 			//console.log(`${key}: ${value}`);
@@ -56,16 +59,15 @@ function unescape_html(str){
 Apify.main(async () => { 
     // Add URLs to a RequestList
 	const requestQueue = await Apify.openRequestQueue(queue_name);
-	var categories=[]; 
-	const lineReader = require('line-reader');
+	 var categories=[]; 
+	/*const lineReader = require('line-reader');
 	lineReader.eachLine('categories.txt', async function(line) { 
 		let url = base_url + line.trim(); 
 		await requestQueue.addRequest({ url: url });
 		categories.push(url);
-	});
+	}); */
 	
-	//await requestQueue.addRequest({ url:'https://www.cellfast.de/produkte/handspritzen-und-brausen/2142-einfache-pistolenspritze-economic'}); 
-	//await requestQueue.addRequest({ url:'https://www.cellfast.de/produkte/neuheiten/2860-automatische-schlauchbox-ergo'}); 
+	await requestQueue.addRequest({ url:'https://www.urimat.shop/zubehoer/Testkategorie-25/Desinfektionsmittelspender-42-45-47-76.html'}); 
  
 
 	var { totalRequestCount, handledRequestCount, pendingRequestCount, name } = await requestQueue.getInfo();
@@ -85,7 +87,7 @@ Apify.main(async () => {
         maxConcurrency: 50,
 
         // On error, retry each page at most once.
-        maxRequestRetries: 3,
+        maxRequestRetries: 2,
 
         // Increase the timeout for processing of each page.
         handlePageTimeoutSecs: 50,
@@ -98,9 +100,9 @@ Apify.main(async () => {
 			
 			//let product = $('div#product_image_layer');
 			//console.log(product);
-			if (  !categories.includes(request.url)  ){// product page or category page ?
+			if ( 1 || !categories.includes(request.url)  ){// product page or category page ?
 				// product page process 
-				log.debug(`Processing product page ${request.url}...`);
+				//log.debug(`Processing product page ${request.url}...`);
 				processed_counter +=1;
 				// get image links  
 				/* var images = [];
@@ -134,18 +136,20 @@ Apify.main(async () => {
 				let item = {
 					url: unescape_html( request.url )
 					, images: '' //images
-					, name:  $('h1').text().trim() //
-					, sku:  $('span.cf-product-sku').text().split('Artikelnummer:')[1] + ' 2nd :' + $('div.uk-card-body').text() //
-					, short_descr: $('meta[name=description]').attr('content') 	//
-					, description:  $('div.cf-product-description', containter).text().trim() + ' ' + specification //
+					, name:   $('h1').text().trim() //
+					, sku:    $('form dd.model-number').text().trim() //
+					, price:  $('div.current-price-container').text().trim().replace(/(\t|\n)/gm," ") //
+					, info:  $('p.tax-shipping-text').text().trim() //
+					, short_descr: $('div.product-info-title-mobile').text().replace(/(\t|\n)/gm,"") 	//
+					, description: unescape_html( $('div[itemprop=description]').html().replace(/(\r\n|\n|\r)/gm,"") ).trim()  //
 					
 					
 				}; 
-				total_data.push(item); */
+				total_data.push(item);  
 				
 			} else {
 				// category page				
-				log.debug(`Processing category page ${request.url}`);
+				//log.debug(`Processing category page ${request.url}`);
 				category_processed_counter +=1; 
 				let category_counter=0;
 				
