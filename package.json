@@ -1,0 +1,23 @@
+{
+  "name": "urimat-scraper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/igorsavinkin/urimat-scraper.git"
+  },
+  "keywords": [
+    "web",
+    "scraping"
+  ],
+  "author": "Igor Savinkin",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/igorsavinkin/urimat-scraper/issues"
+  },
+  "homepage": "https://github.com/igorsavinkin/urimat-scraper#readme"
+}
