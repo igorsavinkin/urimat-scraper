@@ -33,6 +33,7 @@ log.setLevel(log.LEVELS.DEBUG);
 
 const queue_name ='urimat-'+marker;
 const base_url = '';
+const base_url_image = 'https://www.urimat.shop/';
 
 function unescape_html(str){ 
 	if (str){ 
@@ -41,7 +42,8 @@ function unescape_html(str){
 				  '&#xFC;': 'ü', '&uuml;': 'ü', 
 				  '&#xEB;': 'ë', '&euml;': 'ë',
 				  '&#xDF;': 'ß','&szlig;': 'ß',
-				  '&amp;': '&',  '&#xA0;': ' '
+				  '&amp;': '&',
+				  '&#xA0;': ' ', '&nbsp;': ' '
 		};
 		for (const [key, value] of Object.entries(replacer)) {
 			//console.log(`${key}: ${value}`);
@@ -55,26 +57,24 @@ function unescape_html(str){
 	}
 }
 
-
 Apify.main(async () => { 
-    // Add URLs to a RequestList
+    // Add URLs to a RequestQueue
 	const requestQueue = await Apify.openRequestQueue(queue_name);
 	 var categories=[]; 
-	/*const lineReader = require('line-reader');
+	const lineReader = require('line-reader');
 	lineReader.eachLine('categories.txt', async function(line) { 
 		let url = base_url + line.trim(); 
 		await requestQueue.addRequest({ url: url });
 		categories.push(url);
-	}); */
+	});
 	
-	await requestQueue.addRequest({ url:'https://www.urimat.shop/zubehoer/Testkategorie-25/Desinfektionsmittelspender-42-45-47-76.html'}); 
- 
+	// await requestQueue.addRequest({ url:'https://www.urimat.shop/zubehoer/Testkategorie-34/green-drain-geruchssperre-fuer-bodenablaeufe-82.html'}); 
 
-	var { totalRequestCount, handledRequestCount, pendingRequestCount, name } = await requestQueue.getInfo();
+	/* var { totalRequestCount, handledRequestCount, pendingRequestCount, name } = await requestQueue.getInfo();
 	console.log(`RequestQueue "${name}" with requests:` );
 	console.log(' handledRequestCount:', handledRequestCount);
 	console.log(' pendingRequestCount:', pendingRequestCount);
-	console.log(' totalRequestCount:'  , totalRequestCount);	
+	console.log(' totalRequestCount:'  , totalRequestCount);	*/
 	//process.exit(); 
 	
     // Create an instance of the CheerioCrawler class - a crawler
@@ -96,54 +96,35 @@ Apify.main(async () => {
         maxRequestsPerCrawl: 600000,
 		
         handlePageFunction: async ({ request, $ }) => { 
-			console.log ('loaded: ' + $.root().html().length + " bytes.");
+			console.log ('loaded: ' + parseInt( $.root().html().length /10e3 ) + "KB.");
 			
-			//let product = $('div#product_image_layer');
-			//console.log(product);
-			if ( 1 || !categories.includes(request.url)  ){// product page or category page ?
+			if ( !categories.includes(request.url)  ){// product page or category page ?
 				// product page process 
 				//log.debug(`Processing product page ${request.url}...`);
 				processed_counter +=1;
+				
 				// get image links  
-				/* var images = [];
-				img_count=0;
-				images.push( $('ul.uk-slideshow-items img').attr('src') ); 
-				 
-				$('ul.uk-thumbnav img').each((index, el) => {
-					let link = $(el).attr('src'); 
-					images.push( link  ); 
-					img_count +=1;
+				var images = []; 				 
+				$('div#product_image_swiper a').each((index, el) => { 
+					images.push( base_url_image + $(el).attr('href')  );  
 				});	
-				
-				let containter = $('div.uk-card-body');
-				let specification = $('ul.uk-accordion > li:nth-child(1)');
-				try {
-					specification = unescape_html( specification.html() );
-				} catch(e) {
-					specification='';
-				}
-				
-				//let product = $('div#product');
-				const fs = require('fs');
-				const entities = require('html-entities').AllHtmlEntities;
-				fs.writeFileSync('product-'+marker+".txt",  $('div#product')  );
-				fs.writeFileSync('product-'+marker+".html", entities.decode($('div#product').html()) );
-				// filter out duplicate images
-				images = [...new Set(images)];
- 				*/
-				// $('form.product-info').text();
-				
+				let delivery_time='';
+			 	try{
+					delivery_time = $('span.products-shipping-time-value').text().split('(')[1].split(')')[0];
+				} catch(e){ 
+					console.log("No delivery time for url: ",  request.url);
+				} 							
+							
 				let item = {
 					url: unescape_html( request.url )
-					, images: '' //images
+					, images: images
 					, name:   $('h1').text().trim() //
 					, sku:    $('form dd.model-number').text().trim() //
 					, price:  $('div.current-price-container').text().trim().replace(/(\t|\n)/gm," ") //
 					, info:  $('p.tax-shipping-text').text().trim() //
+					, delivery_time: delivery_time  //
 					, short_descr: $('div.product-info-title-mobile').text().replace(/(\t|\n)/gm,"") 	//
 					, description: unescape_html( $('div[itemprop=description]').html().replace(/(\r\n|\n|\r)/gm,"") ).trim()  //
-					
-					
 				}; 
 				total_data.push(item);  
 				
@@ -153,9 +134,11 @@ Apify.main(async () => {
 				category_processed_counter +=1; 
 				let category_counter=0;
 				
-				// pagination links
-				let total= $('div.pagination-info').text().split('insgesamt')[1].split('Artikeln')[0].trim();
-				
+				// pagination links 
+				let total=0;
+				try {
+					total= $('div.pagination-info').text().split('insgesamt')[1].split('Artikeln')[0].trim();
+				} catch(e){ }
 				/* if ( !request.url.includes('?p=')){
 					$('ul.pagination > li > a').each((index, el) => { 
 						let url = $(el).attr('href').trim(); 
@@ -186,8 +169,7 @@ Apify.main(async () => {
     // Run the crawler and wait for it to finish.
     await crawler.run();
 
-    log.debug('Crawler finished.'); 
-	//console.log('img_count: ', img_count);
+    log.debug('Crawler finished.');  
 	
 	log.debug('------------------- Gathered --------------------------');
 	log.debug('Total product links got from site: ' + product_counter); 
@@ -229,7 +211,5 @@ Apify.main(async () => {
 	} else {
 		log.debug("No data at this run.");
 	}
-	// images2 = [...new Set(images2)];
-	// console.log(images2);
 });	
 
