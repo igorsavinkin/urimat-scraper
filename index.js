@@ -1,6 +1,8 @@
 const Apify = require('apify');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const marker = Math.random().toString().substring(2, 5);
+const stripUnescape = require("./strip_unescape");
+
 
 const csvWriter = createCsvWriter({
   path: 'out-' + marker + '.csv',
@@ -34,28 +36,6 @@ log.setLevel(log.LEVELS.DEBUG);
 const queue_name ='urimat-'+marker;
 const base_url = '';
 const base_url_image = 'https://www.urimat.shop/';
-
-function unescape_html(str){ 
-	if (str){ 
-	    replacer={'&#xF6;': 'ö', '&ouml;': 'ö',
-				  '&#xE4;': 'ä', '&auml;': 'ä', 
-				  '&#xFC;': 'ü', '&uuml;': 'ü', 
-				  '&#xEB;': 'ë', '&euml;': 'ë',
-				  '&#xDF;': 'ß','&szlig;': 'ß',
-				  '&amp;': '&',
-				  '&#xA0;': ' ', '&nbsp;': ' '
-		};
-		for (const [key, value] of Object.entries(replacer)) {
-			//console.log(`${key}: ${value}`);
-			while (str.indexOf(key)!= -1){
-				str = str.replace(key, value);
-			} 
-		} 
-		return str;
-	} else {
-		return '';
-	}
-}
 
 Apify.main(async () => { 
     // Add URLs to a RequestQueue
@@ -116,7 +96,7 @@ Apify.main(async () => {
 				} 							
 							
 				let item = {
-					url: unescape_html( request.url )
+					url: stripUnescape.unescape_html( request.url )
 					, images: images
 					, name:   $('h1').text().trim() //
 					, sku:    $('form dd.model-number').text().trim() //
@@ -124,7 +104,7 @@ Apify.main(async () => {
 					, info:  $('p.tax-shipping-text').text().trim() //
 					, delivery_time: delivery_time  //
 					, short_descr: $('div.product-info-title-mobile').text().replace(/(\t|\n)/gm,"") 	//
-					, description: unescape_html( $('div[itemprop=description]').html().replace(/(\r\n|\n|\r)/gm,"") ).trim()  //
+					, description: stripUnescape.unescape_html( stripUnescape.strip_all ( $('div[itemprop=description]').html().replace(/(\r\n|\n|\r)/gm,"") ) ).trim()  //
 				}; 
 				total_data.push(item);  
 				
